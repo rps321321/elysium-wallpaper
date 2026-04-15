@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "ElysiumWallpaper (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "ElysiumWallpaper (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}

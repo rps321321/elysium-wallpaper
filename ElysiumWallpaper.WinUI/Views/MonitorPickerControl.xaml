@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<UserControl
+    x:Class="ElysiumWallpaper.Views.MonitorPickerControl"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid>
+        <Canvas x:Name="LayoutCanvas"
+                Height="160"
+                Background="{ThemeResource CardStrokeColorDefaultBrush}" />
+    </Grid>
+</UserControl>

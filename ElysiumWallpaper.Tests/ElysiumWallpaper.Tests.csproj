@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+        <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
+        <Nullable>enable</Nullable>
+        <LangVersion>latest</LangVersion>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <IsPackable>false</IsPackable>
+        <IsTestProject>true</IsTestProject>
+        <RootNamespace>ElysiumWallpaper.Tests</RootNamespace>
+        <Platforms>x86;x64;ARM64</Platforms>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.*" />
+        <PackageReference Include="xunit" Version="2.*" />
+        <PackageReference Include="xunit.runner.visualstudio" Version="2.*" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\ElysiumWallpaper.WinUI\ElysiumWallpaper.csproj" />
+    </ItemGroup>
+</Project>

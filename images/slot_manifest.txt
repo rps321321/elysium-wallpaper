@@ -1,0 +1,4 @@
+morning=morning.jpg
+noon=noon.jpg
+evening=evening.jpg
+night=night.jpg

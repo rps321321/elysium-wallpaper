@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Application
+    x:Class="ElysiumWallpaper.App"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:local="using:ElysiumWallpaper"
+    xmlns:conv="using:ElysiumWallpaper.Converters"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
+            </ResourceDictionary.MergedDictionaries>
+
+            <conv:PathToImageConverter x:Key="PathToImage" />
+            <conv:StringEqualsToVisibilityConverter x:Key="StringEqualsVisibility" />
+            <conv:BoolToBrushConverter x:Key="BoolToBrush" />
+            <conv:CountToVisibilityConverter x:Key="CountToVisibility" />
+            <conv:BoolToVisibilityConverter x:Key="BoolToVisibility" />
+            <conv:TimestampIsRecentConverter x:Key="TimestampIsRecent" />
+
+            <AcrylicBrush x:Key="HeroAcrylicBrush"
+                          TintColor="#1F4D5A"
+                          TintOpacity="0.7"
+                          FallbackColor="#1F4D5A" />
+
+            <LinearGradientBrush x:Key="HeroGradientBrush" StartPoint="0,0" EndPoint="1,1">
+                <GradientStop Offset="0" Color="#FF1F4D5A" />
+                <GradientStop Offset="1" Color="#FF2B2A5A" />
+            </LinearGradientBrush>
+
+            <Style x:Key="InfoLabelStyle" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="13" />
+                <Setter Property="Opacity" Value="0.85" />
+            </Style>
+
+            <!-- Translucent so the page wallpaper layer shows through subtly -->
+            <SolidColorBrush x:Key="PanelCardBrush" Color="#CC0F1018" />
+
+            <Style x:Key="PanelCardStyle" TargetType="Border">
+                <Setter Property="Background" Value="{StaticResource PanelCardBrush}" />
+                <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}" />
+                <Setter Property="BorderThickness" Value="1" />
+                <Setter Property="CornerRadius" Value="16" />
+                <Setter Property="Padding" Value="16" />
+            </Style>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

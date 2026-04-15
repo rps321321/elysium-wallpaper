@@ -1,0 +1,72 @@
+# Build output
+bin/
+obj/
+dist/
+out/
+publish/
+*.user
+*.suo
+*.userprefs
+
+# IDE
+.vs/
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Rider
+*.DotSettings.user
+
+# Resharper
+_ReSharper*/
+
+# .NET tooling
+*.lock.json
+*.binlog
+*.trx
+*.coverage
+TestResults/
+project.assets.json
+
+# Python (icon generator)
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# OS
+Thumbs.db
+.DS_Store
+desktop.ini
+
+# Generated icon master (regenerable; keep only the canonical asset PNGs)
+ElysiumWallpaper.WinUI/Assets/AppIcon.master.png
+
+# Local secrets / personal config (no secrets currently committed, but defensive)
+*.env
+secrets.json
+appsettings.local.json
+
+# WinUI / WinRT generated
+*.pri
+ms-resource://*
+
+# MSIX / packaging artifacts
+*.msix
+*.msixbundle
+*.appx
+*.appxbundle
+AppPackages/
+BundleArtifacts/
+
+# Crash logs that might land in the repo if someone runs from a clone
+crash-log*.txt
+engine.log
+
+# One-off diagnostic + cached artifacts from earlier in development
+build_diag.log
+vcpkg.zip
+unicode-*/
+
