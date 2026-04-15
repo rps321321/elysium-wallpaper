@@ -158,17 +158,27 @@ def render_square(size: int, *, rounded: bool = True) -> Image.Image:
 
 
 def render_wide(width: int, height: int) -> Image.Image:
-    """Wide tile: same elements stretched to a 2:1-ish aspect ratio.
+    """Wide tile / banner: same elements as the square icon, but composed for landscape.
 
-    Mountains lower-third, moon shifted right so the empty left can hold the
-    Windows tile name overlay without obstruction.
+    Earlier version pushed the moon to the far right and left the entire left half empty,
+    which read as off-balance at banner sizes. This version positions the moon near the
+    right golden-ratio third and distributes a small constellation across the full sky
+    so the composition feels intentional rather than lopsided.
     """
     img = Image.new("RGBA", (width, height), (0, 0, 0, 255))
     _draw_sky(img)
     _draw_mountains(img, horizon_frac=0.62)
-    _draw_moon(img, cx_frac=0.82, cy_frac=0.30, radius_frac=0.16)
-    _draw_star(img, cx_frac=0.55, cy_frac=0.25, size_frac=0.025)
-    _draw_star(img, cx_frac=0.68, cy_frac=0.45, size_frac=0.014)
+    # Moon at ~right-third, slightly smaller so it doesn't dominate.
+    _draw_moon(img, cx_frac=0.72, cy_frac=0.32, radius_frac=0.13)
+    # Constellation: a few brighter stars across the sky, with smaller ones filling
+    # the empty zones. Sizes vary so the eye reads depth instead of a uniform pattern.
+    _draw_star(img, cx_frac=0.10, cy_frac=0.22, size_frac=0.018)
+    _draw_star(img, cx_frac=0.18, cy_frac=0.45, size_frac=0.012)
+    _draw_star(img, cx_frac=0.28, cy_frac=0.18, size_frac=0.022)
+    _draw_star(img, cx_frac=0.38, cy_frac=0.36, size_frac=0.014)
+    _draw_star(img, cx_frac=0.48, cy_frac=0.20, size_frac=0.016)
+    _draw_star(img, cx_frac=0.55, cy_frac=0.42, size_frac=0.012)
+    _draw_star(img, cx_frac=0.88, cy_frac=0.50, size_frac=0.014)
     return img
 
 
