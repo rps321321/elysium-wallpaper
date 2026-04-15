@@ -19,9 +19,9 @@
 
         <!-- Version. Bump before each GitHub release; the auto-update check
              compares this to the latest release's tag_name. -->
-        <Version>1.0.5</Version>
-        <AssemblyVersion>1.0.5.0</AssemblyVersion>
-        <FileVersion>1.0.5.0</FileVersion>
+        <Version>1.0.6</Version>
+        <AssemblyVersion>1.0.6.0</AssemblyVersion>
+        <FileVersion>1.0.6.0</FileVersion>
 
         <!-- App Options -->
         <UseRidGraph>true</UseRidGraph>

@@ -164,6 +164,19 @@ namespace ElysiumWallpaper.Views
             ViewModel.IsSidebarCollapsed = !ViewModel.IsSidebarCollapsed;
         }
 
+        /// <summary>
+        /// Pexels key save. PasswordBox.Password isn't a sane DependencyProperty to bind to
+        /// (binding would round-trip the plaintext through the VM for every keystroke and
+        /// complicate the reveal flow), so we push it to the VM imperatively on click and
+        /// clear the box on success so the value doesn't linger in UI memory.
+        /// </summary>
+        private void SavePexelsKey_Click(object sender, RoutedEventArgs e)
+        {
+            string key = PexelsKeyBox.Password ?? string.Empty;
+            ViewModel.SavePexelsKey(key);
+            if (ViewModel.HasPexelsKey) PexelsKeyBox.Password = string.Empty;
+        }
+
         private async void PickUserFolder_Click(object sender, RoutedEventArgs e) => await SafeAsync("Pick folder", async () =>
         {
             var picker = new Windows.Storage.Pickers.FolderPicker

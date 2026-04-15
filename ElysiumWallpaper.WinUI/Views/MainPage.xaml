@@ -717,6 +717,39 @@
                         <Button Content="Export Profile" Command="{Binding ExportProfileCommand}" />
                         <Button Content="Import Profile" Command="{Binding ImportProfileCommand}" />
                     </StackPanel>
+
+                    <!-- Pexels API key. Tag search + per-monitor auto-assign need this;
+                         the engine itself falls back to Openverse without it. -->
+                    <Border BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                            BorderThickness="0,1,0,0"
+                            Padding="0,12,0,0">
+                        <StackPanel Spacing="8">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="Pexels API key" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                <Border CornerRadius="10" Padding="8,2"
+                                        Background="{Binding HasPexelsKey, Converter={StaticResource BoolToBrush}, ConverterParameter=AccentFillColorDefaultBrush|SystemFillColorCautionBrush}">
+                                    <TextBlock Text="{Binding PexelsKeyStatus}"
+                                               FontSize="11"
+                                               Foreground="White" />
+                                </Border>
+                            </StackPanel>
+                            <TextBlock FontSize="12" Opacity="0.8" TextWrapping="Wrap">
+                                <Run Text="Needed for tag search and per-monitor assign. Grab a free key at" />
+                                <Hyperlink NavigateUri="https://www.pexels.com/api/">pexels.com/api</Hyperlink>
+                                <Run Text="(free tier: 200 req/hr, 20k req/month)." />
+                            </TextBlock>
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <PasswordBox x:Name="PexelsKeyBox"
+                                             Width="320"
+                                             PlaceholderText="Paste your key here"
+                                             PasswordRevealMode="Peek" />
+                                <Button Content="Save" Click="SavePexelsKey_Click" Style="{ThemeResource AccentButtonStyle}" />
+                                <Button Content="Clear"
+                                        Command="{Binding ClearPexelsKeyCommand}"
+                                        ToolTipService.ToolTip="Remove the saved key file. Env var (if set) is unaffected." />
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
                 </StackPanel>
             </Border>
         </StackPanel>

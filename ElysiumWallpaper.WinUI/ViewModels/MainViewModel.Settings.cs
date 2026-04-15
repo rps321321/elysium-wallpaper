@@ -163,6 +163,61 @@ public sealed partial class MainViewModel
             : $"Using local folder: {path}";
     }
 
+    // ---- Pexels API key management ----
+
+    /// <summary>
+    /// Saves a Pexels API key to the local key file via <see cref="PexelsKeyProvider.Save"/>
+    /// and refreshes the UI status. Empty input is a no-op so users don't accidentally save
+    /// an empty key by clicking Save on an empty textbox.
+    /// </summary>
+    public void SavePexelsKey(string key)
+    {
+        if (string.IsNullOrWhiteSpace(key))
+        {
+            StatusHeadline = "Enter a key first.";
+            return;
+        }
+        try
+        {
+            PexelsKeyProvider.Save(key);
+            RefreshPexelsKeyStatus();
+            StatusHeadline = "Pexels key saved. Tag search is now active.";
+        }
+        catch (Exception ex)
+        {
+            StatusHeadline = $"Couldn't save key: {ex.Message}";
+            EngineLog.Write($"SavePexelsKey: {ex}");
+        }
+    }
+
+    /// <summary>Removes the local key file and refreshes the UI status.</summary>
+    [RelayCommand]
+    private void ClearPexelsKey()
+    {
+        try
+        {
+            PexelsKeyProvider.Clear();
+            RefreshPexelsKeyStatus();
+            // If an env var is still defining the key, HasKey stays true after Clear.
+            StatusHeadline = PexelsKeyProvider.HasKey
+                ? "Cleared local key file, but the ELYSIUM_PEXELS_API_KEY env var is still set."
+                : "Pexels key cleared.";
+        }
+        catch (Exception ex)
+        {
+            StatusHeadline = $"Couldn't clear key: {ex.Message}";
+            EngineLog.Write($"ClearPexelsKey: {ex}");
+        }
+    }
+
+    /// <summary>Re-reads the key status from disk/env and pushes it to the bound properties.</summary>
+    public void RefreshPexelsKeyStatus()
+    {
+        PexelsKeyProvider.Invalidate();
+        HasPexelsKey = PexelsKeyProvider.HasKey;
+        PexelsKeyStatus = HasPexelsKey ? "Connected" : "Not configured";
+    }
+
     [RelayCommand]
     private void ExportProfile()
     {

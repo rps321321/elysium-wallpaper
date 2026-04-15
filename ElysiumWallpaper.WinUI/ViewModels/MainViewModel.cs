@@ -144,8 +144,13 @@ public sealed partial class MainViewModel : BaseViewModel, IDisposable, IAsyncDi
             LastSearchError = string.Empty;
             MatchScreenAspect = true;
             AspectTolerance = 0.25;
+            PexelsKeyStatus = "Not configured";
         }
         finally { _isLoadingProfile = false; }
+
+        // Resolve the actual Pexels-key status once construction settles — this reads env
+        // var + disk and populates HasPexelsKey / PexelsKeyStatus.
+        RefreshPexelsKeyStatus();
 
         LoadProfile();
         DetectCurrentlyAppliedWallpaper();
@@ -249,6 +254,8 @@ public sealed partial class MainViewModel : BaseViewModel, IDisposable, IAsyncDi
     [ObservableProperty] public partial bool HasSearchError { get; set; }
     [ObservableProperty] public partial bool MatchScreenAspect { get; set; }
     [ObservableProperty] public partial double AspectTolerance { get; set; }
+    [ObservableProperty] public partial bool HasPexelsKey { get; set; }
+    [ObservableProperty] public partial string PexelsKeyStatus { get; set; }
 
     private Task RunOnUiThreadAsync(Action action)
     {
