@@ -19,9 +19,9 @@
 
         <!-- Version. Bump before each GitHub release; the auto-update check
              compares this to the latest release's tag_name. -->
-        <Version>1.0.6</Version>
-        <AssemblyVersion>1.0.6.0</AssemblyVersion>
-        <FileVersion>1.0.6.0</FileVersion>
+        <Version>1.0.7</Version>
+        <AssemblyVersion>1.0.7.0</AssemblyVersion>
+        <FileVersion>1.0.7.0</FileVersion>
 
         <!-- App Options -->
         <UseRidGraph>true</UseRidGraph>
@@ -46,6 +46,14 @@
         <Content Include="Assets\Wide310x150Logo.scale-200.png" />
         <!-- AppIcon.ico is read at runtime by AppWindow.SetIcon, so it must be in the publish output. -->
         <Content Include="Assets\AppIcon.ico">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
+        <!-- LICENSE + third-party notices ship with the binary so redistribution
+             satisfies each dependency's "include this notice" clause. -->
+        <Content Include="..\LICENSE" Link="LICENSE">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
+        <Content Include="..\THIRD-PARTY-NOTICES.txt" Link="THIRD-PARTY-NOTICES.txt">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </Content>
         <Content Include="..\images\**\*.*" Link="images\%(RecursiveDir)%(Filename)%(Extension)">

@@ -53,6 +53,13 @@ To enable them:
 
 Without a key, the engine still rotates wallpapers via Openverse — only tag search and per-monitor assign are gated.
 
+## Credits
+
+- **Photos provided by [Pexels](https://www.pexels.com/).** When you search or per-monitor-assign, the downloaded images come from Pexels' free-for-commercial-use catalogue. Photographer credit is shown on each search result card and preview.
+- **Images via [Openverse](https://openverse.org/)** under their original Creative Commons licenses (CC0, CC BY, CC BY-SA). When the engine fetches from Openverse, each downloaded file is paired with a `{filename}.attribution.json` sidecar in `%LocalAppData%\ElysiumWallpaper\images\` containing the creator, license, and source URL so the original work can be properly credited.
+
+Please respect the licenses attached to each image when sharing screenshots or redistributing.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).

@@ -164,7 +164,10 @@ public static class SlotAwareFetchService
         string imagesDir, int minWidth, int minHeight, CancellationToken cancellationToken)
     {
         double targetLuma = (cfg.lumaMin + cfg.lumaMax) / 2.0;
-        var allScored = new List<(string url, int w, int h, Candidate c, string query, string source)>();
+        // `attribution` carries the Openverse Candidate when the source is openverse, so the
+        // final download can emit a sidecar .attribution.json. Null for Pexels picks (Pexels
+        // attribution is simpler — just photographer, handled in engine-log for now).
+        var allScored = new List<(string url, int w, int h, Candidate c, string query, string source, OpenverseClient.Candidate? attribution)>();
         // Skip Pexels entirely when the user hasn't supplied a key — Openverse handles the rest.
         bool pexelsExhausted = string.IsNullOrWhiteSpace(apiKey);
 
@@ -209,11 +212,11 @@ public static class SlotAwareFetchService
                 if (analysis is null) continue;
                 examined++;
 
-                allScored.Add((originalUrl, w, h, analysis, query, "pexels"));
+                allScored.Add((originalUrl, w, h, analysis, query, "pexels", null));
 
                 if (IsGatedPass(analysis, cfg))
                 {
-                    return await SaveAndLogAsync(client, slot, imagesDir, originalUrl, w, h, query, analysis, cfg, "pexels", cancellationToken);
+                    return await SaveAndLogAsync(client, slot, imagesDir, originalUrl, w, h, query, analysis, cfg, "pexels", cancellationToken, attribution: null);
                 }
             }
         }
@@ -240,11 +243,11 @@ public static class SlotAwareFetchService
 
                     int w = item.Width > 0 ? item.Width : minWidth;
                     int h = item.Height > 0 ? item.Height : minHeight;
-                    allScored.Add((item.DownloadUrl, w, h, analysis, query, "openverse"));
+                    allScored.Add((item.DownloadUrl, w, h, analysis, query, "openverse", item));
 
                     if (IsGatedPass(analysis, cfg))
                     {
-                        return await SaveAndLogAsync(client, slot, imagesDir, item.DownloadUrl, w, h, query, analysis, cfg, "openverse", cancellationToken);
+                        return await SaveAndLogAsync(client, slot, imagesDir, item.DownloadUrl, w, h, query, analysis, cfg, "openverse", cancellationToken, attribution: item);
                     }
                 }
             }
@@ -255,7 +258,7 @@ public static class SlotAwareFetchService
         var best = allScored
             .OrderBy(x => Math.Abs(x.c.meanLuma - targetLuma) + HueMismatchPenalty(x.c, slot))
             .First();
-        string fallbackName = await DownloadToSlotAsync(client, best.url, slot, imagesDir, cancellationToken);
+        string fallbackName = await DownloadToSlotAsync(client, best.url, slot, imagesDir, cancellationToken, best.attribution);
         EngineLog.Write($"slot '{slot}' FALLBACK ({best.source}) <- '{best.query}' luma={best.c.meanLuma:F2} dark%={best.c.darkPixelRatio:F2} (target {cfg.lumaMin:F2}-{cfg.lumaMax:F2}) {best.w}x{best.h}");
         return fallbackName;
     }
@@ -268,9 +271,10 @@ public static class SlotAwareFetchService
     private static async Task<string> SaveAndLogAsync(
         HttpClient client, string slot, string imagesDir,
         string originalUrl, int w, int h, string query, Candidate analysis,
-        SlotFetchConfig cfg, string source, CancellationToken cancellationToken)
+        SlotFetchConfig cfg, string source, CancellationToken cancellationToken,
+        OpenverseClient.Candidate? attribution)
     {
-        string saved = await DownloadToSlotAsync(client, originalUrl, slot, imagesDir, cancellationToken);
+        string saved = await DownloadToSlotAsync(client, originalUrl, slot, imagesDir, cancellationToken, attribution);
         EngineLog.Write($"slot '{slot}' ({source}) <- '{query}' PASS luma={analysis.meanLuma:F2} dark%={analysis.darkPixelRatio:F2} bright%={analysis.brightPixelRatio:F2} R{analysis.redMean:F0}/G{analysis.greenMean:F0}/B{analysis.blueMean:F0} {w}x{h}");
         return saved;
     }
@@ -343,7 +347,8 @@ public static class SlotAwareFetchService
     }
 
     private static async Task<string> DownloadToSlotAsync(
-        HttpClient client, string url, string slot, string imagesDir, CancellationToken cancellationToken)
+        HttpClient client, string url, string slot, string imagesDir, CancellationToken cancellationToken,
+        OpenverseClient.Candidate? attribution = null)
     {
         // Probe extension via a HEAD-ish request (actually full GET: needed anyway for body).
         // Unique epoch+random-suffixed filename so every reroll produces a NEW path - Windows'
@@ -355,8 +360,51 @@ public static class SlotAwareFetchService
         string targetPath = Path.Combine(imagesDir, fileName);
 
         await PexelsClient.DownloadToFileAsync(client, url, targetPath, cancellationToken);
+        WriteAttributionSidecar(targetPath, attribution);
         RemoveExistingSlotFiles(imagesDir, slot, except: fileName);
         return fileName;
+    }
+
+    /// <summary>
+    /// Writes a <c>{file}.attribution.json</c> sidecar beside the downloaded image when the
+    /// source provided CC metadata (Openverse). This is the artifact users need to credit the
+    /// original creator — a bare filename carries no license information on its own.
+    ///
+    /// Best-effort: a failed sidecar write logs to the engine log and otherwise swallows.
+    /// Better to ship the image without the sidecar than to fail the whole cycle.
+    /// </summary>
+    private static void WriteAttributionSidecar(string imagePath, OpenverseClient.Candidate? attribution)
+    {
+        if (attribution is null) return;
+        if (string.IsNullOrWhiteSpace(attribution.License)
+            && string.IsNullOrWhiteSpace(attribution.Creator)
+            && string.IsNullOrWhiteSpace(attribution.SourceUrl))
+        {
+            return;
+        }
+
+        try
+        {
+            string sidecarPath = imagePath + ".attribution.json";
+            var payload = new
+            {
+                source = "openverse",
+                title = attribution.Title,
+                creator = attribution.Creator,
+                creator_url = attribution.CreatorUrl,
+                license = attribution.License,
+                license_version = attribution.LicenseVersion,
+                source_url = attribution.SourceUrl,
+                image_url = attribution.DownloadUrl,
+                captured_at = DateTimeOffset.UtcNow.ToString("O"),
+            };
+            File.WriteAllText(sidecarPath, JsonSerializer.Serialize(payload,
+                new JsonSerializerOptions { WriteIndented = true }));
+        }
+        catch (Exception ex)
+        {
+            EngineLog.Write($"attribution sidecar write failed: {ex.Message}");
+        }
     }
 
     /// <summary>

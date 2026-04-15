@@ -12,8 +12,24 @@ internal static class OpenverseClient
 {
     private const string BaseUrl = "https://api.openverse.engineering/v1/images/";
 
-    /// <summary>A minimal candidate shape compatible with the Pexels path's downstream scoring.</summary>
-    public sealed record Candidate(string DownloadUrl, string ThumbUrl, int Width, int Height);
+    /// <summary>
+    /// A candidate from Openverse. Carries the CC-license attribution fields (license,
+    /// creator, source URL, title) so downstream code can write a sidecar file and comply
+    /// with the Creative Commons BY / BY-SA attribution requirements. Earlier versions of
+    /// this record dropped those fields and had no way for the app to credit original
+    /// creators — a CC compliance gap flagged in the v1.0.7 legal audit.
+    /// </summary>
+    public sealed record Candidate(
+        string DownloadUrl,
+        string ThumbUrl,
+        int Width,
+        int Height,
+        string? License = null,
+        string? LicenseVersion = null,
+        string? Creator = null,
+        string? CreatorUrl = null,
+        string? SourceUrl = null,
+        string? Title = null);
 
     /// <summary>
     /// Queries Openverse. Returns an empty list on any network / parse failure so callers can
@@ -67,9 +83,15 @@ internal static class OpenverseClient
                 string? thumb = r.TryGetProperty("thumbnail", out var t) ? t.GetString() : dl;
                 int w = r.TryGetProperty("width", out var we) && we.ValueKind == JsonValueKind.Number ? we.GetInt32() : 0;
                 int h = r.TryGetProperty("height", out var he) && he.ValueKind == JsonValueKind.Number ? he.GetInt32() : 0;
+                string? license    = r.TryGetProperty("license", out var lv) ? lv.GetString() : null;
+                string? licenseVer = r.TryGetProperty("license_version", out var lvv) ? lvv.GetString() : null;
+                string? creator    = r.TryGetProperty("creator", out var cv) ? cv.GetString() : null;
+                string? creatorUrl = r.TryGetProperty("creator_url", out var cuv) ? cuv.GetString() : null;
+                string? sourceUrl  = r.TryGetProperty("foreign_landing_url", out var fv) ? fv.GetString() : null;
+                string? title      = r.TryGetProperty("title", out var tv) ? tv.GetString() : null;
                 if (!string.IsNullOrWhiteSpace(dl) && !string.IsNullOrWhiteSpace(thumb))
                 {
-                    list.Add(new Candidate(dl!, thumb!, w, h));
+                    list.Add(new Candidate(dl!, thumb!, w, h, license, licenseVer, creator, creatorUrl, sourceUrl, title));
                 }
             }
             return list;
