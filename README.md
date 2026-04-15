@@ -1,26 +1,28 @@
 # Elysium Wallpaper
 
-A Windows desktop wallpaper engine that picks the right image for the time of day — sunrise, midday, sunset, starry night — and rotates them automatically.
+A Windows desktop wallpaper app that finds, curates, and rotates wallpapers for you — search the web, build collections, match the time of day, or assign different images per monitor. Runs quietly in the system tray.
 
 ![Elysium Wallpaper](docs/banner.png)
 
 ## What it does
 
-- **Time-of-day rotation.** Splits the day into four user-editable slots and applies a wallpaper whose lighting fits the current slot. Bright sky at noon, deep violet horizon at sunset, low-key dark landscape at night — gated by per-slot luminance + histogram analysis so a midday image never sneaks into the 2am slot.
-- **Multi-source library.** Pulls from [Pexels](https://www.pexels.com/) and [Openverse](https://openverse.org/) (commercial-use, modification-allowed filter), with seamless fallback when one rate-limits the other. Optionally walk a local folder.
-- **Search & curate.** Tag search with orientation/color/aspect filters, paginated grid/list views, favorites, named collections, and per-slot history.
-- **Per-monitor assignment.** On multi-monitor setups, fetch one aspect-matched image per display and apply each to its target.
-- **System tray.** Close-to-tray with a right-click menu for quick reroll, previous wallpaper, start/stop engine, and exit.
-- **Spec-aware defaults.** Reads CPU, GPU, RAM, and display topology on launch and pre-populates min-resolution, layout mode (Fill/Span/etc.), and thread budget without you touching anything.
-- **Reroll.** Don't like the current pick? Hit "Not This One" and the engine pulls a fresh slot-appropriate image and forces an apply (with a timestamp-suffixed filename so Windows doesn't cache the path).
+- **Time-of-day rotation.** Splits the day into four user-editable slots (morning / noon / evening / night) and applies a wallpaper whose lighting actually fits the current slot. Per-slot luminance + histogram gates mean a midday beach never sneaks into the 2am slot.
+- **Rotate however you want.** Or switch modes: change every 5 / 15 / 30 minutes / 1h / 2h / 4h / 8h — rotating from your favorites, downloaded library, and an optional local folder (recursive). Recently-applied wallpapers are tracked so you don't see the same one twice in a row.
+- **Search the web.** Tag search across [Pexels](https://www.pexels.com/) and [Openverse](https://openverse.org/) (commercial-use, modification-allowed filter), with orientation / color / aspect filters, paginated grid / list / compact views, and full-screen preview before you commit.
+- **Favorites, collections, history.** Bookmark any image, group favorites into named collections, play through a collection in order, and see every wallpaper the engine has applied with one-click reapply.
+- **Per-monitor assignment.** On multi-monitor setups, fetch one aspect-matched image per display and apply each to its target with a single click.
+- **Spec-aware defaults.** Reads your CPU, GPU, RAM, and display topology on launch and pre-populates min-resolution, layout mode (Fill / Fit / Stretch / Center / Span), and thread budget without you touching anything.
+- **Not this one? Reroll.** Don't like the current pick? The tray menu and the "Not This One" button pull a fresh slot-appropriate image and force an apply.
+- **Lives in your tray.** Close-to-tray with a right-click menu: Show, Next wallpaper, Previous wallpaper, Start / Stop engine, Exit. Optional run-on-startup.
+- **Your library is yours.** Favorites, history, and downloaded images live in `%LocalAppData%` and survive clean reinstalls. Export / import your profile to move everything to another machine.
+- **Stays current.** On launch, checks GitHub for a newer version and offers one-click download if there is one.
+- **Crash-safe.** If the app ever dies unexpectedly, the next launch offers a banner to open or copy the crash log so you can tell me what went wrong.
 
 ## Install
 
-1. Download `ElysiumWallpaper-win-x64.zip` from [Releases](https://github.com/rps321321/elysium-wallpaper/releases) (or build from source — see below).
+1. Download `ElysiumWallpaper-win-x64.zip` from [Releases](https://github.com/rps321321/elysium-wallpaper/releases).
 2. Unzip anywhere — it's self-contained, no .NET install required.
 3. Double-click `ElysiumWallpaper.exe`.
-
-ARM Windows: rebuild with `scripts\publish.ps1 -Rid win-arm64`.
 
 ## Quick start
 
@@ -30,6 +32,12 @@ ARM Windows: rebuild with `scripts\publish.ps1 -Rid win-arm64`.
 4. Optionally close the window — the app minimizes to the tray and keeps rotating.
 
 The slot times (morning/noon/evening/night) are editable in **Settings**. Default boundaries: 06:00 / 12:00 / 17:00 / 20:00.
+
+### Keyboard shortcuts
+- **Ctrl + K** — focus the search box
+- **Ctrl + R** — reroll the current wallpaper
+- **F5** — fetch fresh wallpapers now
+- **Enter / Esc** — submit / clear search
 
 ## Tag search (optional Pexels API key)
 
@@ -44,93 +52,6 @@ To enable them:
 3. Restart the app. Tag search will start working.
 
 Without a key, the engine still rotates wallpapers via Openverse — only tag search and per-monitor assign are gated.
-
-## Build from source
-
-Requirements: Windows 10 1809+, .NET 10 SDK, Windows App SDK 1.x.
-
-```powershell
-git clone <repo>
-cd elysium-wallpaper
-dotnet build ElysiumWallpaper.WinUI/ElysiumWallpaper.csproj -c Debug -p:Platform=x64
-```
-
-Run from `ElysiumWallpaper.WinUI/bin/x64/Debug/net10.0-windows10.0.19041.0/win-x64/ElysiumWallpaper.exe`.
-
-To produce a distributable zip:
-
-```powershell
-.\scripts\publish.ps1                    # win-x64 default
-.\scripts\publish.ps1 -Rid win-arm64
-```
-
-Output lands in `dist/ElysiumWallpaper-<rid>.zip`.
-
-To regenerate the app icons after editing `scripts/generate_icons.py`:
-
-```powershell
-python scripts/generate_icons.py
-```
-
-## Tests
-
-```powershell
-dotnet test ElysiumWallpaper.Tests -p:Platform=x64 -p:RuntimeIdentifier=win-x64
-```
-
-82 tests covering the pure services (slot resolution, time-of-day boundaries, manifest parsing, paged views, loop-delay computation).
-
-## Architecture
-
-WinUI 3 desktop app, .NET 10, MVVM via [CommunityToolkit.Mvvm](https://github.com/CommunityToolkit/dotnet).
-
-```
-ElysiumWallpaper.WinUI/
-├── App.xaml.cs              # Entry, window lifecycle, crash log, icon
-├── Views/                   # XAML pages + code-behind (handlers wrap async calls in SafeAsync)
-├── ViewModels/
-│   ├── MainViewModel.cs     # Fields, ctor, observable props, lifecycle
-│   ├── ...Search.cs         # Pexels paging, filtering, prefetch
-│   ├── ...Engine.cs         # Cycle loop, apply, recently-applied ring
-│   ├── ...Library.cs        # Favorites, history, collections
-│   └── ...Settings.cs       # Profile I/O, slot boundaries, system specs
-├── Services/
-│   ├── PexelsClient.cs              # Search API + downloader
-│   ├── OpenverseClient.cs           # Pexels fallback (no key required)
-│   ├── SlotAwareFetchService.cs     # Per-slot fetch with luma/histogram gates
-│   ├── SlotImageResolver.cs         # Pick a file for the current slot
-│   ├── TimeSlotService.cs           # Time → slot key + boundary math
-│   ├── SlotManifest.cs              # Cache for slot→file mapping
-│   ├── SlotBoundaries.cs            # Validated user-editable slot times
-│   ├── SystemInfoService.cs         # CPU/GPU/RAM/displays via WMI + P/Invoke
-│   ├── WallpaperService.cs          # SystemParametersInfo + IDesktopWallpaper COM
-│   ├── MonitorFetchService.cs       # Per-monitor parallel fetch
-│   ├── TrayService.cs               # H.NotifyIcon.WinUI tray icon + menu
-│   ├── EngineLog.cs                 # Plain-text log under %LocalAppData%
-│   └── PagedView.cs                 # Generic paged collection wrapper
-├── Models/                  # FavoriteItem, HistoryItem, CollectionItem, etc.
-├── Converters/              # XAML value converters (path → bitmap, timestamp → "Today", etc.)
-└── Assets/                  # App icons (regenerable via scripts/generate_icons.py)
-```
-
-State persists to `%LocalAppData%\ElysiumWallpaper\`:
-
-- `profile-<machine>-<resolution>.json` — per-machine settings, favorites, history, collections, recent tags
-- `library/` — downloaded images (survive clean rebuilds and exe moves)
-- `engine.log` — engine breadcrumbs
-- `crash-log.txt` — last-resort crash dump
-
-## Tech stack
-
-| Concern | Library / API |
-|---|---|
-| UI framework | WinUI 3 (Windows App SDK 1.x) |
-| MVVM | CommunityToolkit.Mvvm |
-| Tray icon | H.NotifyIcon.WinUI |
-| WMI | System.Management |
-| Wallpaper apply | `SystemParametersInfo`, `IDesktopWallpaper` COM |
-| Tests | xUnit |
-| Image gen (icons) | Pillow (Python) |
 
 ## License
 
