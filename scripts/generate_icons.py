@@ -89,9 +89,14 @@ def _draw_mountains(img: Image.Image, *, horizon_frac: float = 0.66) -> None:
     draw.polygon(front, fill=MOUNTAIN_DARK + (255,))
 
 
-def _draw_crescent_moon(img: Image.Image, *, cx_frac: float = 0.70, cy_frac: float = 0.28,
-                        radius_frac: float = 0.13) -> None:
-    """Crescent rendered as moon-disc minus an offset shadow disc."""
+def _draw_moon(img: Image.Image, *, cx_frac: float = 0.70, cy_frac: float = 0.28,
+               radius_frac: float = 0.13) -> None:
+    """Full moon disc with a soft outer glow.
+
+    Earlier versions used a crescent, but the crescent shape carries strong religious
+    connotations that we don't want to imply. A full moon is universally read as
+    "nighttime sky" without any cultural baggage and reads cleanly at small sizes.
+    """
     w, h = img.size
     cx, cy = int(w * cx_frac), int(h * cy_frac)
     r = int(min(w, h) * radius_frac)
@@ -100,20 +105,14 @@ def _draw_crescent_moon(img: Image.Image, *, cx_frac: float = 0.70, cy_frac: flo
     glow = Image.new("RGBA", img.size, (0, 0, 0, 0))
     glow_draw = ImageDraw.Draw(glow)
     glow_draw.ellipse((cx - r * 2, cy - r * 2, cx + r * 2, cy + r * 2),
-                      fill=(*MOON, 35))
-    glow = glow.filter(ImageFilter.GaussianBlur(radius=r * 0.4))
+                      fill=(*MOON, 45))
+    glow = glow.filter(ImageFilter.GaussianBlur(radius=r * 0.45))
     img.alpha_composite(glow)
 
     # Moon disc.
     moon_layer = Image.new("RGBA", img.size, (0, 0, 0, 0))
     md = ImageDraw.Draw(moon_layer)
     md.ellipse((cx - r, cy - r, cx + r, cy + r), fill=(*MOON, 255))
-
-    # Mask out a shadow disc offset to the upper-right to make a crescent.
-    shadow_offset = int(r * 0.45)
-    md.ellipse((cx - r + shadow_offset, cy - r - int(shadow_offset * 0.4),
-                cx + r + shadow_offset, cy + r - int(shadow_offset * 0.4)),
-               fill=(0, 0, 0, 0))
     img.alpha_composite(moon_layer)
 
 
@@ -151,7 +150,7 @@ def render_square(size: int, *, rounded: bool = True) -> Image.Image:
     img = Image.new("RGBA", (size, size), (0, 0, 0, 255))
     _draw_sky(img)
     _draw_mountains(img, horizon_frac=0.66)
-    _draw_crescent_moon(img, cx_frac=0.72, cy_frac=0.26, radius_frac=0.14)
+    _draw_moon(img, cx_frac=0.72, cy_frac=0.26, radius_frac=0.13)
     _draw_star(img, cx_frac=0.30, cy_frac=0.18, size_frac=0.030)
     _draw_star(img, cx_frac=0.48, cy_frac=0.34, size_frac=0.018)
     _draw_star(img, cx_frac=0.20, cy_frac=0.40, size_frac=0.014)
@@ -167,7 +166,7 @@ def render_wide(width: int, height: int) -> Image.Image:
     img = Image.new("RGBA", (width, height), (0, 0, 0, 255))
     _draw_sky(img)
     _draw_mountains(img, horizon_frac=0.62)
-    _draw_crescent_moon(img, cx_frac=0.82, cy_frac=0.30, radius_frac=0.18)
+    _draw_moon(img, cx_frac=0.82, cy_frac=0.30, radius_frac=0.16)
     _draw_star(img, cx_frac=0.55, cy_frac=0.25, size_frac=0.025)
     _draw_star(img, cx_frac=0.68, cy_frac=0.45, size_frac=0.014)
     return img
