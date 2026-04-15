@@ -64,18 +64,21 @@ public static class SlotManifest
             return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         }
 
-        DateTime mtime = File.GetLastWriteTimeUtc(manifestPath);
+        // Hold the lock across mtime read + file read + cache write so a concurrent writer
+        // can't sneak between the steps and cause us to cache stale parsed data against
+        // the new mtime — which would then look fresh forever until the next write.
+        // Manifest files are tiny (a handful of lines), so the lock duration is negligible.
         lock (CacheLock)
         {
+            DateTime mtime = File.GetLastWriteTimeUtc(manifestPath);
             if (Cache.TryGetValue(manifestPath, out var entry) && entry.mtime == mtime)
             {
                 return entry.data;
             }
+            var parsed = Parse(File.ReadAllLines(manifestPath));
+            Cache[manifestPath] = (mtime, parsed);
+            return parsed;
         }
-
-        var parsed = Parse(File.ReadAllLines(manifestPath));
-        lock (CacheLock) Cache[manifestPath] = (mtime, parsed);
-        return parsed;
     }
 
     /// <summary>Explicitly invalidate the cached entry for a manifest path (e.g. after a fetch rewrites it).</summary>

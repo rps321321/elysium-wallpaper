@@ -34,7 +34,14 @@ internal static class OpenverseClient
                 "license_type=commercial,modification",
                 $"page_size={Math.Clamp(pageSize, 1, 40)}"
             };
-            if (!string.IsNullOrWhiteSpace(aspectRatio)) parts.Add($"aspect_ratio={aspectRatio}");
+            // Validate against the documented enum so a future bad caller can't inject
+            // arbitrary query-string fragments. URL-encode defensively even though the
+            // valid values are alphanumeric.
+            if (!string.IsNullOrWhiteSpace(aspectRatio) &&
+                aspectRatio is "wide" or "tall" or "square")
+            {
+                parts.Add($"aspect_ratio={Uri.EscapeDataString(aspectRatio)}");
+            }
 
             string url = $"{BaseUrl}?{string.Join("&", parts)}";
             using var request = new HttpRequestMessage(HttpMethod.Get, url);

@@ -34,16 +34,36 @@ public sealed partial class MonitorPickerControl : UserControl
 
     public event EventHandler<string>? MonitorSelected;
 
+    // Stored handlers so Unloaded can detach them. Subscribing in the constructor and
+    // never unsubscribing leaks the control across page reloads (the canvas keeps a
+    // delegate chain rooted to `this`).
+    private TappedEventHandler? _canvasTapped;
+    private SizeChangedEventHandler? _canvasSizeChanged;
+
     public MonitorPickerControl()
     {
         InitializeComponent();
-        LayoutCanvas.Tapped += (_, _) =>
+        _canvasTapped = (_, _) =>
         {
             SelectedDeviceName = WallpaperService.AllMonitors;
             MonitorSelected?.Invoke(this, WallpaperService.AllMonitors);
             Redraw();
         };
-        LayoutCanvas.SizeChanged += (_, _) => Redraw();
+        _canvasSizeChanged = (_, _) => Redraw();
+        Loaded += OnLoaded;
+        Unloaded += OnUnloaded;
+    }
+
+    private void OnLoaded(object sender, RoutedEventArgs e)
+    {
+        LayoutCanvas.Tapped += _canvasTapped;
+        LayoutCanvas.SizeChanged += _canvasSizeChanged;
+    }
+
+    private void OnUnloaded(object sender, RoutedEventArgs e)
+    {
+        LayoutCanvas.Tapped -= _canvasTapped;
+        LayoutCanvas.SizeChanged -= _canvasSizeChanged;
     }
 
     public IReadOnlyList<DisplayInfo>? Displays

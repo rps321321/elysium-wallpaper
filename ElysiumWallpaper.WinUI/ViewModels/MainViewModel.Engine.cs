@@ -52,14 +52,16 @@ public sealed partial class MainViewModel
                 return;
             }
 
-            // Force a fresh apply even if the filename didn't change (Windows caches by path).
-            string? fullPath = ResolveCurrentImageAbsolutePath();
-            if (fullPath is not null)
-            {
-                // Break the path cache by clearing CurrentImageFullPath first.
-                await RunOnUiThreadAsync(() => CurrentImageFullPath = string.Empty);
-                ApplyAndTrack(fullPath, originTag: "user");
-            }
+            // Apply the file we just fetched directly. Earlier code routed through
+            // ResolveCurrentImageAbsolutePath() which re-reads the manifest from disk —
+            // if the manifest write hadn't flushed yet, that returned the OLD image and
+            // the user saw no change. Use newFile (which is the absolute path returned
+            // by the fetch) so what we apply matches what we logged.
+            string newFileAbsolute = Path.Combine(_imagesPath, newFile);
+            // Break the path cache by clearing CurrentImageFullPath first (Windows SPI
+            // dedups by path string).
+            await RunOnUiThreadAsync(() => CurrentImageFullPath = string.Empty);
+            ApplyAndTrack(newFileAbsolute, originTag: "user");
             StatusHeadline = $"Rerolled {slotKey} wallpaper.";
             EngineLog.Write($"reroll: applied {newFile}");
         }
@@ -208,7 +210,8 @@ public sealed partial class MainViewModel
                 // forceApply=true only for interval rotation; locked + slot-time modes rely on
                 // the CurrentImageFullPath change-detection so they no-op when nothing changed.
                 bool intervalMode = ParseIntervalMinutes(AutoChangeMode) is not null;
-                await RunCycleAsync(forceFetch: false, forceApply: intervalMode, cancellationToken);
+                await RunCycleAsync(forceFetch: false, forceApply: intervalMode, cancellationToken,
+                                    calledByEngine: true);
             }
         }
         catch (OperationCanceledException)
@@ -242,11 +245,15 @@ public sealed partial class MainViewModel
     /// <summary>Returns the interval in minutes when the mode string encodes one, else null.</summary>
     internal static int? ParseIntervalMinutes(string? mode) => AutoChangeModes.GetIntervalMinutes(mode ?? "");
 
-    private async Task RunCycleAsync(bool forceFetch, bool forceApply, CancellationToken cancellationToken)
+    private async Task RunCycleAsync(bool forceFetch, bool forceApply, CancellationToken cancellationToken,
+                                     bool calledByEngine = false)
     {
         // C4 - one cycle at a time; manual Apply/Fetch + loop never overlap.
+        // calledByEngine is now an explicit parameter — earlier we derived it from the
+        // (forceFetch, forceApply) pair, but `FetchNowAsync` and `RunLoopAsync` collide
+        // on that derivation, putting "engine" in HistoryItem.AppliedBy for user fetches
+        // and vice-versa. The persisted profile then has wrong provenance forever.
         await _cycleGate.WaitAsync(cancellationToken);
-        bool calledByEngine = !forceApply || !forceFetch;  // loop calls pass both false
         try
         {
             if (forceFetch)

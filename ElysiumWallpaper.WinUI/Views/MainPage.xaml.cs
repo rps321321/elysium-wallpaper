@@ -6,6 +6,10 @@ namespace ElysiumWallpaper.Views
     {
         public MainViewModel ViewModel { get; }
 
+        // Captured handler so OnUnloaded can unsubscribe — anonymous lambda subscriptions
+        // can't be removed and the page would leak across navigation reloads.
+        private System.ComponentModel.PropertyChangedEventHandler? _vmPropertyChangedHandler;
+
         public MainPage()
         {
             ViewModel = new MainViewModel(this.DispatcherQueue);
@@ -16,7 +20,7 @@ namespace ElysiumWallpaper.Views
             // PropertyChanged handlers are not async-void contexts but the body needs to await,
             // so we route through SafeAsync to surface failures via StatusHeadline + EngineLog
             // (matching every other async handler in this file).
-            ViewModel.PropertyChanged += (_, args) =>
+            _vmPropertyChangedHandler = (_, args) =>
             {
                 if (args.PropertyName == nameof(MainViewModel.SelectedTheme)) ApplyTheme();
                 if (args.PropertyName == nameof(MainViewModel.CurrentImageFullPath))
@@ -25,6 +29,7 @@ namespace ElysiumWallpaper.Views
                     _ = SafeAsync("Backdrop update", UpdateBackdropAsync);
                 }
             };
+            ViewModel.PropertyChanged += _vmPropertyChangedHandler;
         }
 
         private void Backdrop_ImageFailed(object sender, ExceptionRoutedEventArgs e)
@@ -182,6 +187,13 @@ namespace ElysiumWallpaper.Views
 
         private void OnUnloaded(object sender, RoutedEventArgs e)
         {
+            // Unsubscribe BEFORE Dispose — otherwise a final PropertyChanged from disposal
+            // (e.g., StatusHeadline = "...") would re-enter UI code on a torn-down page.
+            if (_vmPropertyChangedHandler is not null)
+            {
+                ViewModel.PropertyChanged -= _vmPropertyChangedHandler;
+                _vmPropertyChangedHandler = null;
+            }
             ViewModel.Dispose();
         }
 

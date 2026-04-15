@@ -74,51 +74,63 @@ public sealed partial class MainViewModel
             return;
         }
 
-        // Filters drifted - reset buffer + dedup set so we refetch cleanly.
-        string signature = BuildSearchSignature();
-        if (!string.Equals(_cachedSearchSignature, signature, StringComparison.Ordinal))
-        {
-            ResetSearchState();
-        }
-
-        SearchResults.Clear();
-
-        // Ensure the buffer holds enough items to cover the requested UI page.
-        int needed = SearchPage * DisplayPageSize;
+        // Wait for any in-flight prefetch to land before we start mutating shared state.
+        // Otherwise SearchResults.Add(_filteredBuffer[i]) below could race with the BG
+        // _filteredBuffer.Add(...) and throw IndexOutOfRange.
+        await _searchGate.WaitAsync();
         try
         {
-            IsSearching = true;
-            while (_filteredBuffer.Count < needed && HasMorePexelsPages())
+            // Filters drifted - reset buffer + dedup set so we refetch cleanly.
+            string signature = BuildSearchSignature();
+            if (!string.Equals(_cachedSearchSignature, signature, StringComparison.Ordinal))
             {
-                SearchStatus = $"Searching \"{tag}\" (buffered {_filteredBuffer.Count})...";
-                bool fetched = await FetchNextPexelsBatchAsync(tag, signature);
-                if (!fetched) break;
+                ResetSearchState();
             }
+
+            SearchResults.Clear();
+
+            // Ensure the buffer holds enough items to cover the requested UI page.
+            int needed = SearchPage * DisplayPageSize;
+            try
+            {
+                IsSearching = true;
+                while (_filteredBuffer.Count < needed && HasMorePexelsPages())
+                {
+                    SearchStatus = $"Searching \"{tag}\" (buffered {_filteredBuffer.Count})...";
+                    bool fetched = await FetchNextPexelsBatchAsync(tag, signature);
+                    if (!fetched) break;
+                }
+            }
+            catch (Exception ex)
+            {
+                SearchStatus = $"Search failed: {ex.Message}";
+                HasSearchError = true;
+                LastSearchError = ex.Message;
+                IsSearching = false;
+                return;
+            }
+
+            // Slice the buffer for the current UI page.
+            int start = (SearchPage - 1) * DisplayPageSize;
+            int end = Math.Min(start + DisplayPageSize, _filteredBuffer.Count);
+            for (int i = start; i < end; i++)
+            {
+                SearchResults.Add(_filteredBuffer[i]);
+            }
+
+            // Compute an estimate of total filtered pages from observed survival rate.
+            UpdateEstimatedTotals();
+
+            SearchStatus = SearchResults.Count == 0
+                ? $"No more images for \"{tag}\"."
+                : $"Page {SearchPage} of {SearchTotalPages} (~{_pexelsTotalResults:N0})";
         }
-        catch (Exception ex)
+        finally
         {
-            SearchStatus = $"Search failed: {ex.Message}";
-            HasSearchError = true;
-            LastSearchError = ex.Message;
-            IsSearching = false;
-            return;
+            _searchGate.Release();
         }
 
-        // Slice the buffer for the current UI page.
-        int start = (SearchPage - 1) * DisplayPageSize;
-        int end = Math.Min(start + DisplayPageSize, _filteredBuffer.Count);
-        for (int i = start; i < end; i++)
-        {
-            SearchResults.Add(_filteredBuffer[i]);
-        }
-
-        // Compute an estimate of total filtered pages from observed survival rate.
-        UpdateEstimatedTotals();
-
-        SearchStatus = SearchResults.Count == 0
-            ? $"No more images for \"{tag}\"."
-            : $"Page {SearchPage} of {SearchTotalPages} (~{_pexelsTotalResults:N0})";
-
+        // Kick off the next-page prefetch AFTER releasing the gate so it can acquire it.
         TryPrefetchNextPage(tag);
         IsSearching = false;
         return;
@@ -265,6 +277,10 @@ public sealed partial class MainViewModel
         string signature = BuildSearchSignature();
         _ = Task.Run(async () =>
         {
+            // Serialize with foreground LoadSearchPageAsync — both mutate _filteredBuffer
+            // / _seenPhotoIds / _pexelsPagesFetched, which are plain non-thread-safe
+            // collections. Without the gate we hit IndexOutOfRange / corruption.
+            await _searchGate.WaitAsync();
             try
             {
                 await FetchNextPexelsBatchAsync(tag, signature);
@@ -272,6 +288,10 @@ public sealed partial class MainViewModel
             catch
             {
                 // Prefetch is best-effort.
+            }
+            finally
+            {
+                _searchGate.Release();
             }
         });
     }

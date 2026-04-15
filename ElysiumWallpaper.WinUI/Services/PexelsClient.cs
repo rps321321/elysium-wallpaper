@@ -27,10 +27,26 @@ internal static class PexelsClient
         using var response = await client.SendAsync(request, cancellationToken);
         response.EnsureSuccessStatusCode();
 
-        await using var input = await response.Content.ReadAsStreamAsync(cancellationToken);
-        await using var output = File.Create(targetPath);
-        await input.CopyToAsync(output, cancellationToken);
-        return targetPath;
+        // Stream into a sibling .tmp first; on success, atomically rename. On any failure
+        // (cancellation, network drop, disk full) we delete the .tmp instead of leaving a
+        // zero-byte stub at targetPath that downstream FindExistingSlotFile would treat
+        // as valid and apply as a black-screen wallpaper.
+        string tempPath = targetPath + ".tmp";
+        try
+        {
+            await using (var input = await response.Content.ReadAsStreamAsync(cancellationToken))
+            await using (var output = File.Create(tempPath))
+            {
+                await input.CopyToAsync(output, cancellationToken);
+            }
+            File.Move(tempPath, targetPath, overwrite: true);
+            return targetPath;
+        }
+        catch
+        {
+            try { if (File.Exists(tempPath)) File.Delete(tempPath); } catch { }
+            throw;
+        }
     }
 
     /// <summary>Returns the file extension (including the dot) for a Pexels image URL, defaulting to .jpg.</summary>

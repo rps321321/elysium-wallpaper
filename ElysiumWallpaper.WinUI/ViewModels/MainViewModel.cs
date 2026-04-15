@@ -49,6 +49,10 @@ public sealed partial class MainViewModel : BaseViewModel, IDisposable, IAsyncDi
     private string? _cachedSearchSignature;
     private int _pexelsPagesFetched;
     private int _pexelsTotalResults;
+    // Serializes LoadSearchPageAsync (UI thread) and TryPrefetchNextPage (Task.Run) so
+    // they don't both mutate _filteredBuffer / _seenPhotoIds concurrently — those are
+    // plain List/HashSet, not thread-safe collections.
+    private readonly SemaphoreSlim _searchGate = new(1, 1);
 
     private readonly Queue<string> _recentlyApplied = new();
     private readonly object _recentlyAppliedLock = new();
@@ -273,8 +277,10 @@ public sealed partial class MainViewModel : BaseViewModel, IDisposable, IAsyncDi
     public void Dispose()
     {
         TryLogged(() => _engineCancellation?.Cancel(), nameof(Dispose) + ".cancel");
-        // Flush one last snapshot before tearing down the debounce timer.
+        // Flush one last snapshot, then BLOCK until the background write finishes —
+        // otherwise process exit can truncate profile.json mid-write.
         TryLogged(FlushProfileToDisk, nameof(Dispose) + ".flush");
+        TryLogged(() => WaitForLastFlush(TimeSpan.FromSeconds(2)), nameof(Dispose) + ".flush-wait");
         TryLogged(() => _saveDebounceTimer.Dispose(), nameof(Dispose) + ".timer");
         TryLogged(() => _engineLoopTask?.Wait(TimeSpan.FromSeconds(3)), nameof(Dispose) + ".wait");
         TryLogged(() => _engineCancellation?.Dispose(), nameof(Dispose) + ".cts-dispose");
@@ -285,6 +291,7 @@ public sealed partial class MainViewModel : BaseViewModel, IDisposable, IAsyncDi
     {
         TryLogged(() => _engineCancellation?.Cancel(), nameof(DisposeAsync) + ".cancel");
         TryLogged(FlushProfileToDisk, nameof(DisposeAsync) + ".flush");
+        TryLogged(() => WaitForLastFlush(TimeSpan.FromSeconds(2)), nameof(DisposeAsync) + ".flush-wait");
         TryLogged(() => _saveDebounceTimer.Dispose(), nameof(DisposeAsync) + ".timer");
         if (_engineLoopTask is not null)
         {

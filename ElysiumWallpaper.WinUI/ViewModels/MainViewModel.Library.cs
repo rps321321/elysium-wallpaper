@@ -277,6 +277,12 @@ public sealed partial class MainViewModel
 
     private void RebuildFilteredFavorites()
     {
+        // Skip during bulk load (LoadProfile clears + adds N favorites one-at-a-time,
+        // each Add fires CollectionChanged → RebuildFilteredFavorites — that's O(N²)
+        // sort/filter work for a 200-favorite profile). LoadProfile calls this once
+        // at the end after _isLoadingProfile flips back to false.
+        if (_isLoadingProfile) return;
+
         IEnumerable<FavoriteItem> q = Favorites;
         if (!string.IsNullOrWhiteSpace(FavoritesFilter))
         {

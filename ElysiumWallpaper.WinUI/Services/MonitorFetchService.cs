@@ -76,9 +76,12 @@ public static class MonitorFetchService
                     result[display.DeviceName] = savedPath;
                 }
             }
-            catch when (!cancellationToken.IsCancellationRequested)
+            catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
             {
-                // Single-monitor failure should not kill the whole batch.
+                // Single-monitor failure should not kill the whole batch — but log so a
+                // partially-empty result has a diagnostic trail (otherwise 4 silent failures
+                // look identical to "no candidates found").
+                EngineLog.Write($"monitor-fetch '{display.DeviceName}' failed: {ex.GetType().Name}: {ex.Message}");
             }
             finally
             {

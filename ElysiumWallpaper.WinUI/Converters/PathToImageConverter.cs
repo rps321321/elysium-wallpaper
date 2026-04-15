@@ -9,11 +9,15 @@ namespace ElysiumWallpaper.Converters;
 /// </summary>
 public sealed class PathToImageConverter : IValueConverter
 {
-    // Cache by (path, mtime) - if the file is rewritten in place, mtime changes and we refetch.
-    // A small bounded LRU keeps memory in check when the library grows.
-    private const int CacheCapacity = 64;
+    // Cache by (path, mtime) — if the file is rewritten in place, mtime changes and we refetch.
+    // BitmapImage holds a WIC-decoded texture (potentially tens of MB at 4K). The cache values
+    // are WeakReference so the GC can reclaim them under memory pressure; the (path, mtime) key
+    // dedups within a single XAML pass. CacheCapacity caps strong-reference count via the
+    // UsageOrder LRU; weak entries beyond it stay around only until GC.
+    private const int CacheCapacity = 16;
     private static readonly LinkedList<string> UsageOrder = new();
-    private static readonly Dictionary<string, (DateTime mtime, BitmapImage image)> Cache = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly Dictionary<string, (DateTime mtime, WeakReference<BitmapImage> imageRef)> Cache
+        = new(StringComparer.OrdinalIgnoreCase);
     private static readonly object CacheLock = new();
 
     public object? Convert(object value, Type targetType, object parameter, string language)
@@ -27,10 +31,12 @@ public sealed class PathToImageConverter : IValueConverter
 
         lock (CacheLock)
         {
-            if (Cache.TryGetValue(path, out var entry) && entry.mtime == mtime)
+            if (Cache.TryGetValue(path, out var entry)
+                && entry.mtime == mtime
+                && entry.imageRef.TryGetTarget(out var existing))
             {
                 Touch(path);
-                return entry.image;
+                return existing;
             }
         }
 
@@ -39,9 +45,9 @@ public sealed class PathToImageConverter : IValueConverter
 
         lock (CacheLock)
         {
-            Cache[path] = (mtime, bmp);
+            Cache[path] = (mtime, new WeakReference<BitmapImage>(bmp));
             Touch(path);
-            while (Cache.Count > CacheCapacity && UsageOrder.First is { } oldest)
+            while (UsageOrder.Count > CacheCapacity && UsageOrder.First is { } oldest)
             {
                 Cache.Remove(oldest.Value);
                 UsageOrder.RemoveFirst();

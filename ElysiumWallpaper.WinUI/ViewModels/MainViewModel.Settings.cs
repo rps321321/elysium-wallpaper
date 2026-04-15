@@ -278,19 +278,29 @@ public sealed partial class MainViewModel
     /// is NOT thread-safe to enumerate), then serializes + writes on a background task so disk I/O
     /// never blocks the UI.
     /// </summary>
+    /// <summary>
+    /// Last in-flight background write task. <see cref="Dispose"/> / <see cref="DisposeAsync"/>
+    /// awaits this so process exit doesn't truncate the profile mid-write.
+    /// </summary>
+    private Task? _lastFlushTask;
+    private readonly object _lastFlushLock = new();
+
     private void FlushProfileToDisk()
     {
-        if (_isLoadingProfile) return;
-
+        // Read on the timer thread is racy with LoadProfile flipping the flag on the UI
+        // thread. Move the check inside TryEnqueue so it runs on the same thread that
+        // mutates _isLoadingProfile, eliminating the race.
         _dispatcherQueue.TryEnqueue(() =>
         {
+            if (_isLoadingProfile) return;
+
             AppProfile snapshot;
             try { snapshot = SnapshotProfile(); }
             catch (Exception ex) { EngineLog.Write($"profile snapshot failed: {ex.Message}"); return; }
 
             string targetPath = _profilePath;
             string directory = Path.GetDirectoryName(targetPath)!;
-            _ = Task.Run(() =>
+            var flush = Task.Run(() =>
             {
                 try
                 {
@@ -302,7 +312,21 @@ public sealed partial class MainViewModel
                     EngineLog.Write($"profile write failed: {ex.Message}");
                 }
             });
+            lock (_lastFlushLock) { _lastFlushTask = flush; }
         });
+    }
+
+    /// <summary>
+    /// Blocks (briefly) until the most recent background flush settles. Called from
+    /// Dispose so a process-exit at the moment of the debounce timer firing doesn't
+    /// produce a truncated profile.json.
+    /// </summary>
+    internal void WaitForLastFlush(TimeSpan timeout)
+    {
+        Task? t;
+        lock (_lastFlushLock) { t = _lastFlushTask; }
+        try { t?.Wait(timeout); }
+        catch (Exception ex) { EngineLog.Write($"WaitForLastFlush: {ex.Message}"); }
     }
 
     private AppProfile SnapshotProfile() => new()

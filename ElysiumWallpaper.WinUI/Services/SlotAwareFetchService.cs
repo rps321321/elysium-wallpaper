@@ -330,6 +330,12 @@ public static class SlotAwareFetchService
                 greenMean: sumG / (double)total,
                 blueMean: sumB / (double)total);
         }
+        catch (OperationCanceledException)
+        {
+            // Propagate so the outer fetch loop stops scoring more candidates instead
+            // of burning network on dozens of thumbnails after the user cancelled.
+            throw;
+        }
         catch
         {
             return null;
@@ -340,10 +346,12 @@ public static class SlotAwareFetchService
         HttpClient client, string url, string slot, string imagesDir, CancellationToken cancellationToken)
     {
         // Probe extension via a HEAD-ish request (actually full GET: needed anyway for body).
-        // Unique epoch-suffixed filename so every reroll produces a NEW path - Windows' SPI cache
-        // matches on the old path and skips the refresh if we overwrite `night.jpg` in place.
+        // Unique epoch+random-suffixed filename so every reroll produces a NEW path - Windows'
+        // SPI cache matches on the old path and skips the refresh if we overwrite `night.jpg`
+        // in place. Pure-millisecond suffixes collided when two reroll clicks landed in the
+        // same ms; the 8-char Guid fragment makes that effectively impossible.
         string ext = PexelsClient.DetectExtension(url);
-        string fileName = $"{slot}-{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}{ext}";
+        string fileName = $"{slot}-{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}-{Guid.NewGuid().ToString("N")[..8]}{ext}";
         string targetPath = Path.Combine(imagesDir, fileName);
 
         await PexelsClient.DownloadToFileAsync(client, url, targetPath, cancellationToken);
