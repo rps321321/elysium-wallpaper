@@ -1,0 +1,16 @@
+# Normalize line endings so cross-platform contributors don't churn the diff.
+* text=auto eol=crlf
+
+# These stay LF regardless of host OS.
+*.sh    text eol=lf
+*.py    text eol=lf
+
+# Treat as binary (no diff, no eol conversion).
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.ico   binary
+*.zip   binary
+*.exe   binary
+*.dll   binary
+*.pdb   binary

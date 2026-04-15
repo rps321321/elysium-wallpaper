@@ -120,4 +120,4 @@ State persists to `%LocalAppData%\ElysiumWallpaper\`:
 
 ## License
 
-TBD.
+MIT — see [LICENSE](LICENSE).
