@@ -54,6 +54,7 @@ namespace ElysiumWallpaper.Views
             MonitorPicker?.RefreshBackgrounds();
             await UpdateBackdropAsync();
             ShowCrashBannerIfNeeded();
+            _ = CheckForUpdateAsync();
         });
 
         // ---- Crash recovery banner ----
@@ -85,6 +86,39 @@ namespace ElysiumWallpaper.Views
         {
             // Banner dismissed (X button or programmatic). Archive the log so it doesn't reappear.
             ElysiumWallpaper.Services.CrashReportService.Dismiss();
+        }
+
+        // ---- Auto-update banner ----
+
+        private string? _latestReleaseUrl;
+
+        private async Task CheckForUpdateAsync()
+        {
+            try
+            {
+                var info = await ElysiumWallpaper.Services.UpdateCheckService.CheckAsync();
+                if (!info.HasUpdate || info.Latest is null) return;
+
+                _latestReleaseUrl = info.ReleaseUrl;
+                UpdateInfoBar.Message =
+                    $"Version {info.Latest.ToString(3)} is available on GitHub. You're running " +
+                    $"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "?"}.";
+                UpdateInfoBar.IsOpen = true;
+            }
+            catch (Exception ex)
+            {
+                ElysiumWallpaper.Services.EngineLog.Write($"update-banner failed: {ex.Message}");
+            }
+        }
+
+        private async void OpenReleasePage_Click(object sender, RoutedEventArgs e)
+        {
+            string url = _latestReleaseUrl ?? "https://github.com/rps321321/elysium-wallpaper/releases";
+            try { await Windows.System.Launcher.LaunchUriAsync(new Uri(url)); }
+            catch (Exception ex)
+            {
+                ViewModel.StatusHeadline = $"Couldn't open browser: {ex.Message}";
+            }
         }
 
         private async Task UpdateBackdropAsync()

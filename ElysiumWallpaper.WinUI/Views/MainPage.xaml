@@ -71,6 +71,19 @@
                     </Grid>
                 </Border>
 
+                <!-- Update available banner. Shown by the code-behind when GitHub reports a
+                     newer release than the current assembly version. Action button opens the
+                     release page in the user's default browser. -->
+                <InfoBar x:Name="UpdateInfoBar"
+                         IsOpen="False"
+                         Severity="Informational"
+                         Title="Update available"
+                         Message="A newer version of Elysium Wallpaper is available on GitHub.">
+                    <InfoBar.ActionButton>
+                        <Button Content="Download" Click="OpenReleasePage_Click" />
+                    </InfoBar.ActionButton>
+                </InfoBar>
+
                 <!-- Crash recovery banner. IsOpen is set by the code-behind on Loaded if a
                      recent crash log exists. The two action buttons reveal the log file in
                      Explorer and copy its contents to the clipboard, respectively. -->

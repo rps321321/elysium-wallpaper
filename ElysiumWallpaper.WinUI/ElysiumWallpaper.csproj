@@ -17,6 +17,12 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <RootNamespace>ElysiumWallpaper</RootNamespace>
 
+        <!-- Version. Bump before each GitHub release; the auto-update check
+             compares this to the latest release's tag_name. -->
+        <Version>1.0.0</Version>
+        <AssemblyVersion>1.0.0.0</AssemblyVersion>
+        <FileVersion>1.0.0.0</FileVersion>
+
         <!-- App Options -->
         <UseRidGraph>true</UseRidGraph>
         <Platforms>x86;x64;ARM64</Platforms>

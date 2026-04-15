@@ -16,7 +16,7 @@ A Windows desktop wallpaper engine that picks the right image for the time of da
 
 ## Install
 
-1. Download `ElysiumWallpaper-win-x64.zip` from [Releases](#) (or build from source — see below).
+1. Download `ElysiumWallpaper-win-x64.zip` from [Releases](https://github.com/rps321321/elysium-wallpaper/releases) (or build from source — see below).
 2. Unzip anywhere — it's self-contained, no .NET install required.
 3. Double-click `ElysiumWallpaper.exe`.
 
