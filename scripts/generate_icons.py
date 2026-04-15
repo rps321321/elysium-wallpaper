@@ -222,10 +222,19 @@ def main() -> None:
     print(f"  {'AppIcon.ico':60s} multi-res")
 
     # README hero image — committed (unlike the master, which is gitignored).
+    # 512x512 logo as a fallback / favicon-grade asset.
     DOCS.mkdir(parents=True, exist_ok=True)
     logo = downsample(master, (512, 512))
     logo.save(DOCS / "logo.png")
     print(f"  {'docs/logo.png':60s} 512x512")
+
+    # Wide README banner. 1280x640 (2:1) matches GitHub's OpenGraph / social-preview
+    # ratio and renders cleanly across desktop (~760px content area, scaled down) and
+    # mobile. Same elements as the icon, but composed for landscape so the gradient
+    # sky and crescent get room to breathe.
+    banner = render_wide(1280, 640)
+    banner.save(DOCS / "banner.png")
+    print(f"  {'docs/banner.png':60s} 1280x640")
 
     print("Done.")
 

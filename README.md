@@ -2,7 +2,7 @@
 
 A Windows desktop wallpaper engine that picks the right image for the time of day — sunrise, midday, sunset, starry night — and rotates them automatically.
 
-<p align="center"><img src="docs/logo.png" alt="Elysium Wallpaper" width="200"></p>
+![Elysium Wallpaper](docs/banner.png)
 
 ## What it does
 
