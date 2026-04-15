@@ -20,6 +20,7 @@ from PIL import Image, ImageDraw, ImageFilter
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 ASSETS = REPO_ROOT / "ElysiumWallpaper.WinUI" / "Assets"
+DOCS = REPO_ROOT / "docs"
 
 # Sky gradient stops (top → bottom). Vertically lerp'd per pixel row.
 SKY_TOP    = (8,   12,  48)    # midnight blue
@@ -219,6 +220,12 @@ def main() -> None:
     ico_path = ASSETS / "AppIcon.ico"
     save_ico(master, ico_path)
     print(f"  {'AppIcon.ico':60s} multi-res")
+
+    # README hero image — committed (unlike the master, which is gitignored).
+    DOCS.mkdir(parents=True, exist_ok=True)
+    logo = downsample(master, (512, 512))
+    logo.save(DOCS / "logo.png")
+    print(f"  {'docs/logo.png':60s} 512x512")
 
     print("Done.")
 
