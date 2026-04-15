@@ -39,8 +39,10 @@ public sealed partial class MainViewModel
 
             int minW = MinWidth > 0 ? (int)MinWidth : 1920;
             int minH = MinHeight > 0 ? (int)MinHeight : 1080;
+            // PexelsKeyProvider.Key may be null — SlotAwareFetchService handles that by skipping
+            // Pexels and using only Openverse for this fetch.
             string? newFile = await SlotAwareFetchService.FetchSingleSlotAsync(
-                SearchClient, EmbeddedPexelsApiKey, slotKey, _imagesPath, minW, minH, UserActionToken());
+                SearchClient, PexelsKeyProvider.Key, slotKey, _imagesPath, minW, minH, UserActionToken());
 
             SlotManifest.InvalidateCache(Path.Combine(_imagesPath, SlotManifest.FileName));
             if (newFile is null)
@@ -144,6 +146,14 @@ public sealed partial class MainViewModel
             return;
         }
 
+        // Per-monitor auto-assign is Pexels-only (it relies on tag search + aspect filtering).
+        // Without a key we can't do this — surface that clearly.
+        if (!PexelsKeyProvider.HasKey)
+        {
+            StatusHeadline = "Per-monitor assign needs a Pexels API key. See README.";
+            return;
+        }
+
         string tag = string.IsNullOrWhiteSpace(SearchTag) ? "landscape" : SearchTag.Trim();
         StatusHeadline = $"Fetching one image per display for \"{tag}\"...";
         try
@@ -151,7 +161,7 @@ public sealed partial class MainViewModel
             int maxParallel = Math.Max(1, Math.Min(4, Math.Max(1, SystemSpecs.Cpu.PhysicalCores / 2)));
             var map = await MonitorFetchService.FetchOneImagePerMonitorAsync(
                 SearchClient,
-                EmbeddedPexelsApiKey,
+                PexelsKeyProvider.Key!,
                 tag,
                 _libraryPath,
                 SystemSpecs.Displays,
@@ -449,8 +459,9 @@ public sealed partial class MainViewModel
         {
             int minW = MinWidth > 0 ? (int)MinWidth : 1920;
             int minH = MinHeight > 0 ? (int)MinHeight : 1080;
+            // Null key is fine here — SlotAwareFetchService skips Pexels and uses Openverse only.
             bool ok = await SlotAwareFetchService.FetchAllSlotsAsync(
-                SearchClient, EmbeddedPexelsApiKey, _imagesPath, minW, minH, cancellationToken);
+                SearchClient, PexelsKeyProvider.Key, _imagesPath, minW, minH, cancellationToken);
 
             // Invalidate the manifest cache so the next resolve re-reads.
             SlotManifest.InvalidateCache(Path.Combine(_imagesPath, SlotManifest.FileName));

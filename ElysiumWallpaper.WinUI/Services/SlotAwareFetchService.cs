@@ -86,7 +86,7 @@ public static class SlotAwareFetchService
     /// </summary>
     public static async Task<bool> FetchAllSlotsAsync(
         HttpClient client,
-        string apiKey,
+        string? apiKey,
         string imagesDir,
         int minWidth,
         int minHeight,
@@ -130,7 +130,7 @@ public static class SlotAwareFetchService
     /// </summary>
     public static async Task<string?> FetchSingleSlotAsync(
         HttpClient client,
-        string apiKey,
+        string? apiKey,
         string slot,
         string imagesDir,
         int minWidth,
@@ -160,20 +160,24 @@ public static class SlotAwareFetchService
     }
 
     private static async Task<string?> FetchOneSlotAsync(
-        HttpClient client, string apiKey, string slot, SlotFetchConfig cfg,
+        HttpClient client, string? apiKey, string slot, SlotFetchConfig cfg,
         string imagesDir, int minWidth, int minHeight, CancellationToken cancellationToken)
     {
         double targetLuma = (cfg.lumaMin + cfg.lumaMax) / 2.0;
         var allScored = new List<(string url, int w, int h, Candidate c, string query, string source)>();
-        bool pexelsExhausted = false;
+        // Skip Pexels entirely when the user hasn't supplied a key — Openverse handles the rest.
+        bool pexelsExhausted = string.IsNullOrWhiteSpace(apiKey);
 
         // --- Round 1: Pexels (auth required, curated quality) ---
         foreach (var query in cfg.queries.OrderBy(_ => Random.Shared.Next()).Take(4))
         {
+            if (pexelsExhausted) break;
             cancellationToken.ThrowIfCancellationRequested();
             string url = $"https://api.pexels.com/v1/search?query={Uri.EscapeDataString(query)}&per_page=30&orientation=landscape&color={cfg.color}";
 
-            using var request = PexelsClient.BuildApiRequest(url, apiKey);
+            // apiKey non-null here: pexelsExhausted is set to true when apiKey is null/empty,
+            // so we'd have broken out of the loop above.
+            using var request = PexelsClient.BuildApiRequest(url, apiKey!);
             using var response = await client.SendAsync(request, cancellationToken);
             if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
             {

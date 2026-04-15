@@ -42,8 +42,20 @@ public static class UpdateCheckService
             // GitHub requires User-Agent on all API calls.
             req.Headers.UserAgent.ParseAdd($"{Repo}/{current.ToString(3)}");
             req.Headers.Accept.ParseAdd("application/vnd.github+json");
+            // Pin the API version per https://docs.github.com/en/rest/overview/api-versions
+            // so a future GitHub default-version bump doesn't silently change response shape.
+            req.Headers.Add("X-GitHub-Api-Version", "2022-11-28");
 
             using var resp = await Http.SendAsync(req, ct);
+            // 403/429 with anonymous limit (60 req/IP/hr) is easy to hit on a shared NAT.
+            // Log so it's diagnosable rather than indistinguishable from a genuine 404.
+            if ((int)resp.StatusCode is 403 or 429)
+            {
+                string? retryAfter = resp.Headers.TryGetValues("Retry-After", out var v)
+                    ? string.Join(",", v) : null;
+                EngineLog.Write($"update-check rate-limited ({(int)resp.StatusCode})" +
+                                (retryAfter is null ? "" : $", Retry-After={retryAfter}"));
+            }
             // 404 means "no releases yet" — completely normal early in a project's life.
             if (!resp.IsSuccessStatusCode) return UpdateInfo.None;
 
@@ -64,6 +76,11 @@ public static class UpdateCheckService
             return cmp > 0
                 ? new UpdateInfo(true, latest, url)
                 : UpdateInfo.None;
+        }
+        catch (OperationCanceledException)
+        {
+            // Cancellation is normal (e.g., page unloaded mid-check), not an error.
+            return UpdateInfo.None;
         }
         catch (Exception ex)
         {

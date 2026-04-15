@@ -31,6 +31,20 @@ ARM Windows: rebuild with `scripts\publish.ps1 -Rid win-arm64`.
 
 The slot times (morning/noon/evening/night) are editable in **Settings**. Default boundaries: 06:00 / 12:00 / 17:00 / 20:00.
 
+## Tag search (optional Pexels API key)
+
+The auto-rotation engine works out of the box using [Openverse](https://openverse.org/) for image fetching — no setup needed. **Tag search** and **per-monitor auto-assign** additionally need a free [Pexels](https://www.pexels.com/api/) API key.
+
+To enable them:
+
+1. Sign up at [pexels.com/api](https://www.pexels.com/api/) — the free tier (200 req/hr, 20k req/month) is plenty.
+2. Provide your key one of two ways:
+   - **Environment variable**: `setx ELYSIUM_PEXELS_API_KEY "your-key-here"` then restart the app.
+   - **Key file**: save the key as a single line in `%LocalAppData%\ElysiumWallpaper\pexels.key`.
+3. Restart the app. Tag search will start working.
+
+Without a key, the engine still rotates wallpapers via Openverse — only tag search and per-monitor assign are gated.
+
 ## Build from source
 
 Requirements: Windows 10 1809+, .NET 10 SDK, Windows App SDK 1.x.

@@ -13,13 +13,16 @@ namespace ElysiumWallpaper.Views
             this.InitializeComponent();
             Unloaded += OnUnloaded;
             Loaded += OnLoaded;
-            ViewModel.PropertyChanged += async (_, args) =>
+            // PropertyChanged handlers are not async-void contexts but the body needs to await,
+            // so we route through SafeAsync to surface failures via StatusHeadline + EngineLog
+            // (matching every other async handler in this file).
+            ViewModel.PropertyChanged += (_, args) =>
             {
                 if (args.PropertyName == nameof(MainViewModel.SelectedTheme)) ApplyTheme();
                 if (args.PropertyName == nameof(MainViewModel.CurrentImageFullPath))
                 {
                     MonitorPicker?.RefreshBackgrounds();
-                    await UpdateBackdropAsync();
+                    _ = SafeAsync("Backdrop update", UpdateBackdropAsync);
                 }
             };
         }
@@ -111,15 +114,12 @@ namespace ElysiumWallpaper.Views
             }
         }
 
-        private async void OpenReleasePage_Click(object sender, RoutedEventArgs e)
-        {
-            string url = _latestReleaseUrl ?? "https://github.com/rps321321/elysium-wallpaper/releases";
-            try { await Windows.System.Launcher.LaunchUriAsync(new Uri(url)); }
-            catch (Exception ex)
+        private async void OpenReleasePage_Click(object sender, RoutedEventArgs e) =>
+            await SafeAsync("Open release page", async () =>
             {
-                ViewModel.StatusHeadline = $"Couldn't open browser: {ex.Message}";
-            }
-        }
+                string url = _latestReleaseUrl ?? "https://github.com/rps321321/elysium-wallpaper/releases";
+                await Windows.System.Launcher.LaunchUriAsync(new Uri(url));
+            });
 
         private async Task UpdateBackdropAsync()
         {
@@ -168,7 +168,12 @@ namespace ElysiumWallpaper.Views
             picker.FileTypeFilter.Add("*");
 
             // WinUI 3 desktop: the picker must be associated with the host window's HWND.
-            var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(App.Current is App app ? app.GetWindow() : Window.Current);
+            // Window.Current is null in WinUI 3 desktop, so we go through App.GetWindow()
+            // exclusively. If somehow App isn't an App instance, the cast pattern returns null
+            // and we throw with a clear message rather than NullReferenceException.
+            if (App.Current is not App app)
+                throw new InvalidOperationException("App.Current is not the expected App type.");
+            var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(app.GetWindow());
             WinRT.Interop.InitializeWithWindow.Initialize(picker, hwnd);
 
             var folder = await picker.PickSingleFolderAsync();

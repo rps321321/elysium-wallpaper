@@ -61,8 +61,8 @@ dotnet publish $projectPath `
     --nologo
 
 if ($LASTEXITCODE -ne 0) {
-    Write-Error "Publish failed with exit code $LASTEXITCODE"
-    exit $LASTEXITCODE
+    # 'throw' instead of 'exit' so dot-sourcing this script doesn't kill the calling shell.
+    throw "Publish failed with exit code $LASTEXITCODE"
 }
 
 # Locate the publish output. csproj computes PublishDir as bin\<config>\<tfm>\<rid>\publish\.

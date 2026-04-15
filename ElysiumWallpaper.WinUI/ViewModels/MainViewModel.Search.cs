@@ -133,6 +133,16 @@ public sealed partial class MainViewModel
 
     private async Task<bool> FetchNextPexelsBatchAsync(string tag, string signature)
     {
+        // Tag-based search is Pexels-only (Openverse has no equivalent paginated tag API
+        // that we use). Without a key the feature simply isn't available — surface that
+        // clearly rather than firing an authless request that returns 401.
+        string? apiKey = PexelsKeyProvider.Key;
+        if (string.IsNullOrWhiteSpace(apiKey))
+        {
+            SearchStatus = "Tag search needs a free Pexels API key. See README → 'Tag search'.";
+            return false;
+        }
+
         int pexelsPage = _pexelsPagesFetched + 1;
         string encoded = Uri.EscapeDataString(tag);
         var query = new List<string>
@@ -147,7 +157,7 @@ public sealed partial class MainViewModel
             query.Add($"color={SelectedColorTone}");
         string url = $"https://api.pexels.com/v1/search?{string.Join("&", query)}";
         using var request = new HttpRequestMessage(HttpMethod.Get, url);
-        request.Headers.TryAddWithoutValidation("Authorization", EmbeddedPexelsApiKey);
+        request.Headers.TryAddWithoutValidation("Authorization", apiKey);
         request.Headers.UserAgent.ParseAdd("ElysiumWallpaper/1.0");
 
         using HttpResponseMessage response = await SearchClient.SendAsync(request);

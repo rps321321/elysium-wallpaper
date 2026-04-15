@@ -19,7 +19,9 @@ namespace ElysiumWallpaper.ViewModels;
 /// </summary>
 public sealed partial class MainViewModel : BaseViewModel, IDisposable, IAsyncDisposable
 {
-    private const string EmbeddedPexelsApiKey = "[REDACTED-LEAKED-PEXELS-KEY]";
+    // Pexels API key is read at runtime from PexelsKeyProvider (env var or local file).
+    // The previous build embedded a key in source; that key was leaked when the repo went
+    // public and must be rotated at pexels.com. See README for setup instructions.
     private static readonly string[] KnownExtensions = [".jpg", ".jpeg", ".png", ".bmp"];
     private static readonly HttpClient SearchClient = new() { Timeout = TimeSpan.FromSeconds(20) };
 
@@ -105,36 +107,41 @@ public sealed partial class MainViewModel : BaseViewModel, IDisposable, IAsyncDi
         // Gate under _isLoadingProfile to prevent OnXChanged handlers (which call SaveProfile,
         // RunCycleAsync, RebuildFilteredFavorites, etc.) from firing during construction. The
         // old field-initializer style bypassed the setter; we have to suppress here instead.
+        // try/finally guarantees the flag is cleared even if a setter throws — otherwise the
+        // VM would be stuck in "loading" forever and SaveProfile would silently no-op.
         _isLoadingProfile = true;
-        StatusHeadline = "Ready";
-        CurrentImageFullPath = string.Empty;
-        SearchTag = "nature";
-        SearchStatus = "Search a tag to browse matching wallpapers.";
-        SelectedLayoutMode = "Fill";
-        SelectedOrientation = "Any";
-        SelectedColorTone = "Any";
-        SelectedMonitorId = WallpaperService.AllMonitors;
-        NewCollectionName = string.Empty;
-        SelectedCollectionName = string.Empty;
-        SelectedSearchView = "Grid";
-        SelectedLibraryTab = "Favorites";
-        SearchPage = 1;
-        SearchPerPage = DisplayPageSize;
-        SearchPageLabel = string.Empty;
-        SystemSpecs = new SystemSpecs();
-        SelectedTheme = "Default";
-        FavoritesFilter = string.Empty;
-        FavoritesSort = "Newest";
-        AutoChangeMode = AutoChangeModes.TimeOfDay;
-        UserImagesFolder = string.Empty;
-        MorningStart = new TimeSpan(6, 0, 0);
-        NoonStart = new TimeSpan(12, 0, 0);
-        EveningStart = new TimeSpan(17, 0, 0);
-        NightStart = new TimeSpan(20, 0, 0);
-        LastSearchError = string.Empty;
-        MatchScreenAspect = true;
-        AspectTolerance = 0.25;
-        _isLoadingProfile = false;
+        try
+        {
+            StatusHeadline = "Ready";
+            CurrentImageFullPath = string.Empty;
+            SearchTag = "nature";
+            SearchStatus = "Search a tag to browse matching wallpapers.";
+            SelectedLayoutMode = "Fill";
+            SelectedOrientation = "Any";
+            SelectedColorTone = "Any";
+            SelectedMonitorId = WallpaperService.AllMonitors;
+            NewCollectionName = string.Empty;
+            SelectedCollectionName = string.Empty;
+            SelectedSearchView = "Grid";
+            SelectedLibraryTab = "Favorites";
+            SearchPage = 1;
+            SearchPerPage = DisplayPageSize;
+            SearchPageLabel = string.Empty;
+            SystemSpecs = new SystemSpecs();
+            SelectedTheme = "Default";
+            FavoritesFilter = string.Empty;
+            FavoritesSort = "Newest";
+            AutoChangeMode = AutoChangeModes.TimeOfDay;
+            UserImagesFolder = string.Empty;
+            MorningStart = new TimeSpan(6, 0, 0);
+            NoonStart = new TimeSpan(12, 0, 0);
+            EveningStart = new TimeSpan(17, 0, 0);
+            NightStart = new TimeSpan(20, 0, 0);
+            LastSearchError = string.Empty;
+            MatchScreenAspect = true;
+            AspectTolerance = 0.25;
+        }
+        finally { _isLoadingProfile = false; }
 
         LoadProfile();
         DetectCurrentlyAppliedWallpaper();

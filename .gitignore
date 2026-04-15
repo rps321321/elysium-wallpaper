@@ -70,3 +70,6 @@ build_diag.log
 vcpkg.zip
 unicode-*/
 
+# Claude Code session state (per-machine, never useful in repo)
+.claude/
+

@@ -10,10 +10,15 @@ namespace ElysiumWallpaper
     /// </summary>
     public partial class App : Application
     {
-        private Window window = Window.Current;
+        // Window.Current is a UWP API that returns null in WinUI 3 desktop apps. Don't initialize
+        // here — OnLaunched is the only place a Window legitimately exists. Anyone calling
+        // GetWindow() before OnLaunched runs gets a clear exception instead of a NullReference.
+        private Window? window;
 
         /// <summary>Returns the owning window for HWND interop (folder pickers etc.).</summary>
-        public Window GetWindow() => window;
+        public Window GetWindow() => window
+            ?? throw new InvalidOperationException(
+                "App window is not yet initialized. GetWindow() called before OnLaunched.");
         private const string WindowBoundsFileName = "window-bounds.json";
 
         /// <summary>
@@ -75,6 +80,7 @@ namespace ElysiumWallpaper
         {
             try
             {
+                if (window is null) return;
                 var appWindow = window.AppWindow;
                 if (appWindow is null) return;
                 string iconPath = Path.Combine(AppContext.BaseDirectory, "Assets", "AppIcon.ico");
@@ -98,6 +104,7 @@ namespace ElysiumWallpaper
                 var bounds = JsonSerializer.Deserialize<WindowBoundsRecord>(File.ReadAllText(path));
                 if (bounds is null || bounds.Width <= 0 || bounds.Height <= 0) return;
 
+                if (window is null) return;
                 var appWindow = window.AppWindow;
                 if (appWindow is null) return;
                 appWindow.MoveAndResize(new RectInt32(bounds.Left, bounds.Top, bounds.Width, bounds.Height));
@@ -112,6 +119,7 @@ namespace ElysiumWallpaper
         {
             try
             {
+                if (window is null) return;
                 var appWindow = window.AppWindow;
                 if (appWindow is null) return;
                 var pos = appWindow.Position;

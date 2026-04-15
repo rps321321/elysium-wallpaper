@@ -17,6 +17,11 @@ public static class CrashReportService
 {
     private static readonly TimeSpan RecencyWindow = TimeSpan.FromDays(7);
 
+    // Serializes Append (called from the unhandled-exception handler) and Dismiss (called from
+    // the InfoBar Closed event) so a crash-while-dismissing doesn't drop the new entry to an
+    // IOException on File.Move/AppendAllText. Same pattern as EngineLog.
+    private static readonly object FileGate = new();
+
     private static string LogDirectory =>
         Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
@@ -34,7 +39,10 @@ public static class CrashReportService
         {
             Directory.CreateDirectory(LogDirectory);
             string body = exception?.ToString() ?? "(no exception object)";
-            File.AppendAllText(LogPath, $"[{DateTime.Now:O}] {message}\n{body}\n\n");
+            lock (FileGate)
+            {
+                File.AppendAllText(LogPath, $"[{DateTime.Now:O}] {message}\n{body}\n\n");
+            }
         }
         catch
         {
@@ -70,11 +78,14 @@ public static class CrashReportService
     {
         try
         {
-            if (!File.Exists(LogPath)) return;
-            string archive = Path.Combine(
-                LogDirectory,
-                $"crash-log.{DateTime.Now:yyyyMMdd-HHmmss}.txt.bak");
-            File.Move(LogPath, archive, overwrite: true);
+            lock (FileGate)
+            {
+                if (!File.Exists(LogPath)) return;
+                string archive = Path.Combine(
+                    LogDirectory,
+                    $"crash-log.{DateTime.Now:yyyyMMdd-HHmmss}.txt.bak");
+                File.Move(LogPath, archive, overwrite: true);
+            }
         }
         catch (Exception ex)
         {
