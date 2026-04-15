@@ -9,7 +9,7 @@ public sealed class AppProfile
     public int MinHeight { get; set; } = 0;
     public bool TrayEnabled { get; set; }
     public bool StartupEnabled { get; set; }
-    public string SelectedMonitorId { get; set; } = Services.WallpaperService.AllMonitors;
+    public string SelectedMonitorId { get; set; } = MonitorConstants.AllMonitors;
     public int ActiveCollectionIndex { get; set; } = 0;
     public List<FavoriteItem> Favorites { get; set; } = [];
     public List<HistoryItem> History { get; set; } = [];

@@ -255,7 +255,8 @@ public sealed partial class MainViewModel
             RebuildFilteredFavorites();
 
             ApplyStartupState(IsStartupEnabled);
-            AppActions.SetTrayMode(IsTrayEnabled);
+            // Tray mode is consumed directly via the IsTrayEnabled ObservableProperty; the
+            // old AppActions pub-sub hop was dead code (no subscribers anywhere).
         }
         finally
         {

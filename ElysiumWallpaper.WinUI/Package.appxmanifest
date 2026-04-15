@@ -9,7 +9,7 @@
 
   <Identity
     Name="1ba56014-2c5c-4d47-9114-83a597f13082"
-    Publisher="CN=User Name"
+    Publisher="CN=ElysiumWallpaper"
     Version="1.0.0.0" />
 
   <mp:PhoneIdentity PhoneProductId="1ba56014-2c5c-4d47-9114-83a597f13082" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
@@ -21,8 +21,8 @@
   </Properties>
 
   <Dependencies>
-    <TargetDeviceFamily Name="Windows.Universal" MinVersion="10.0.17763.0" MaxVersionTested="10.0.19041.0" />
-    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.17763.0" MaxVersionTested="10.0.19041.0" />
+    <TargetDeviceFamily Name="Windows.Universal" MinVersion="10.0.17763.0" MaxVersionTested="10.0.22621.0" />
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.17763.0" MaxVersionTested="10.0.22621.0" />
   </Dependencies>
 
   <Resources>

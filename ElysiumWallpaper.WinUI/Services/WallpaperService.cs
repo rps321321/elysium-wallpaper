@@ -12,7 +12,9 @@ public sealed class MonitorOption
 public static class WallpaperService
 {
     /// <summary>Sentinel monitor ID meaning "all connected displays".</summary>
-    public const string AllMonitors = "ALL";
+    // Forward to the canonical definition in Models so Services ↔ Models references only
+    // flow downward. Kept here as a public const for back-compat with existing callers.
+    public const string AllMonitors = ElysiumWallpaper.Models.MonitorConstants.AllMonitors;
 
     private const uint SpiSetDeskWallpaper = 0x0014;
     private const uint SpiGetDeskWallpaper = 0x0073;
@@ -81,9 +83,21 @@ public static class WallpaperService
         return File.Exists(transcoded) ? EnsureDecodableCopy(transcoded) : null;
     }
 
+    private static readonly object ShimCopyGate = new();
+
     /// <summary>
-    /// WIC decoders in WinUI's BitmapImage sometimes bail on files without an extension.
-    /// Transparently shim such paths through a cached <c>.jpg</c>-extensioned copy in %TEMP%.
+    /// WIC decoders in WinUI's BitmapImage sometimes bail on files without an extension
+    /// (e.g., Windows' TranscodedWallpaper). Shim such paths through a <c>.jpg</c>-extensioned
+    /// copy in %TEMP%.
+    ///
+    /// The shim name is derived from the source path via a short hash so each source gets its
+    /// own stable shim — earlier versions used a single <c>current-wallpaper.jpg</c>, which
+    /// created a TOCTOU window between concurrent wallpaper changes (engine tick vs. user
+    /// click) where one File.Copy overwrote the shim while another thread was still handing
+    /// it to BitmapImage.
+    ///
+    /// Startup cleanup trims shims older than 7 days so the temp dir doesn't grow unbounded
+    /// across sessions.
     /// </summary>
     private static string EnsureDecodableCopy(string sourcePath)
     {
@@ -94,20 +108,75 @@ public static class WallpaperService
         {
             string tempDir = Path.Combine(Path.GetTempPath(), "ElysiumWallpaper");
             Directory.CreateDirectory(tempDir);
-            string shim = Path.Combine(tempDir, "current-wallpaper.jpg");
 
-            var src = new FileInfo(sourcePath);
-            var dst = new FileInfo(shim);
-            if (!dst.Exists || dst.LastWriteTimeUtc < src.LastWriteTimeUtc || dst.Length != src.Length)
+            // Stable per-source shim name: hash the source path so concurrent calls for
+            // different sources don't collide, and calls for the same source return the
+            // same shim.
+            string shimName = $"shim-{ShortHash(sourcePath)}.jpg";
+            string shim = Path.Combine(tempDir, shimName);
+
+            // Serialize copies so a concurrent call doesn't see a half-written shim.
+            // The critical section is narrow (single File.Copy), so contention is negligible.
+            lock (ShimCopyGate)
             {
-                File.Copy(sourcePath, shim, overwrite: true);
+                var src = new FileInfo(sourcePath);
+                var dst = new FileInfo(shim);
+                if (!dst.Exists || dst.LastWriteTimeUtc < src.LastWriteTimeUtc || dst.Length != src.Length)
+                {
+                    File.Copy(sourcePath, shim, overwrite: true);
+                }
             }
+
+            CleanupOldShims(tempDir);
             return shim;
         }
         catch
         {
             return sourcePath;
         }
+    }
+
+    /// <summary>8-hex-char FNV-1a of the input — stable, no crypto dependency.</summary>
+    private static string ShortHash(string input)
+    {
+        unchecked
+        {
+            uint hash = 2166136261;
+            foreach (char c in input)
+            {
+                hash ^= c;
+                hash *= 16777619;
+            }
+            return hash.ToString("x8");
+        }
+    }
+
+    private static DateTime _lastShimCleanup;
+    private static readonly TimeSpan ShimCleanupInterval = TimeSpan.FromHours(1);
+    private static readonly TimeSpan ShimMaxAge = TimeSpan.FromDays(7);
+
+    /// <summary>
+    /// Removes shims unused for more than 7 days. Throttled to run at most once per hour so
+    /// rapid wallpaper changes don't thrash the directory enumerator.
+    /// </summary>
+    private static void CleanupOldShims(string tempDir)
+    {
+        if (DateTime.UtcNow - _lastShimCleanup < ShimCleanupInterval) return;
+        _lastShimCleanup = DateTime.UtcNow;
+
+        try
+        {
+            DateTime cutoff = DateTime.UtcNow - ShimMaxAge;
+            foreach (var file in Directory.EnumerateFiles(tempDir, "shim-*.jpg"))
+            {
+                try
+                {
+                    if (File.GetLastWriteTimeUtc(file) < cutoff) File.Delete(file);
+                }
+                catch { /* skip — another process may own it */ }
+            }
+        }
+        catch { /* tempDir gone; nothing to do */ }
     }
 
     [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Unicode, EntryPoint = "SystemParametersInfoW")]

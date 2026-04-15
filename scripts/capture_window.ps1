@@ -57,7 +57,11 @@ public class WindowCapture {
 }
 "@ -ReferencedAssemblies System.Drawing -ErrorAction Stop
 
-$proc = Get-Process | Where-Object { $_.MainWindowTitle -like "*$WindowTitle*" -and $_.MainWindowHandle -ne 0 } | Select-Object -First 1
+$proc = Get-Process | Where-Object {
+    # Use -match with an escaped pattern instead of -like: titles containing [, ], ?, or *
+    # are treated as glob metacharacters by -like and either match the wrong window or nothing.
+    $_.MainWindowTitle -match [regex]::Escape($WindowTitle) -and $_.MainWindowHandle -ne 0
+} | Select-Object -First 1
 if (-not $proc) { throw "No window matching '*$WindowTitle*' found." }
 
 Write-Host "Capturing $($proc.MainWindowTitle) (PID $($proc.Id)) to $Output" -ForegroundColor Cyan

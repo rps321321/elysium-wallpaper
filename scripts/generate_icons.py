@@ -3,7 +3,7 @@ Procedurally generates the Elysium Wallpaper app icons.
 
 Design: a stylized horizon at the bottom — dark mountain silhouette — with a
 gradient sky transitioning from midnight blue (top) through twilight purple to
-warm sunset orange near the horizon. A crescent moon and one star sit in the
+warm sunset orange near the horizon. A full moon and a few stars sit in the
 upper sky. Matches the time-of-day theme of the app.
 
 Renders ONE high-resolution master at 1024x1024, then downsamples with high-
@@ -240,7 +240,7 @@ def main() -> None:
     # Wide README banner. 1280x640 (2:1) matches GitHub's OpenGraph / social-preview
     # ratio and renders cleanly across desktop (~760px content area, scaled down) and
     # mobile. Same elements as the icon, but composed for landscape so the gradient
-    # sky and crescent get room to breathe.
+    # sky and moon get room to breathe.
     banner = render_wide(1280, 640)
     banner.save(DOCS / "banner.png")
     print(f"  {'docs/banner.png':60s} 1280x640")

@@ -97,14 +97,20 @@ public class SlotManifestTests : IDisposable
     [Fact]
     public void LoadCached_refreshes_when_file_mtime_changes()
     {
+        // Write + read the first state, then capture its actual mtime so the "advanced"
+        // mtime is deterministically > firstMtime. Earlier the test used DateTime.UtcNow
+        // offsets which could collide on fast machines where UtcNow returned the same
+        // tick twice.
         File.WriteAllText(_tempPath, "morning=old.jpg\n");
         var a = SlotManifest.LoadCached(_tempPath);
         Assert.Equal("old.jpg", a["morning"]);
+        DateTime firstMtime = File.GetLastWriteTimeUtc(_tempPath);
 
-        // Simulate mtime change.
-        File.SetLastWriteTimeUtc(_tempPath, DateTime.UtcNow.AddSeconds(10));
+        // Write the new content FIRST so the file is flushed, then force mtime forward.
+        // (Doing WriteAllText after SetLastWriteTimeUtc would clobber the advanced mtime
+        // since WriteAllText updates it to "now".)
         File.WriteAllText(_tempPath, "morning=new.jpg\n");
-        File.SetLastWriteTimeUtc(_tempPath, DateTime.UtcNow.AddSeconds(20));
+        File.SetLastWriteTimeUtc(_tempPath, firstMtime.AddSeconds(5));
 
         var b = SlotManifest.LoadCached(_tempPath);
         Assert.NotSame(a, b);
